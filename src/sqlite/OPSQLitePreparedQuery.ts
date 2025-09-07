@@ -128,6 +128,7 @@ export class OPSQLitePreparedQuery<
     const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
     logger.logQuery(query.sql, params);
 
+    // @ts-expect-error
     const rows = db.executeSync(query.sql, params).rows?._array || [];
     const row = rows[0];
 
@@ -144,6 +145,7 @@ export class OPSQLitePreparedQuery<
     const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
     logger.logQuery(query.sql, params);
 
+    // @ts-expect-error
     const rows = db.executeSync(query.sql, params).rows?._array || [];
 
     return (customResultMapper as (rows: Record<string, unknown>[]) => unknown)(rows) as T['all'];
@@ -227,7 +229,9 @@ function updateNullifyMap(
 
   const objectName = path[0]!;
   if (!(objectName in nullifyMap)) {
+    // @ts-expect-error
     nullifyMap[objectName] = value === null ? getTableName(field.table) : false;
+    // @ts-expect-error
   } else if (typeof nullifyMap[objectName] === 'string' && nullifyMap[objectName] !== getTableName(field.table)) {
     nullifyMap[objectName] = false;
   }
