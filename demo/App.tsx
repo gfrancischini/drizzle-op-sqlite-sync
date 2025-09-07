@@ -17,12 +17,7 @@ import {
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PowerSyncContext, useQuery } from '@powersync/react-native';
 import { eq } from 'drizzle-orm';
-import {
-  drizzleLists,
-  drizzleTodos,
-  SystemContext,
-  useSystem,
-} from './SystemContext';
+import { drizzleLists, SystemContext, useSystem } from './SystemContext';
 import { toCompilableQuery } from '@powersync/drizzle-driver';
 
 function App() {
@@ -48,7 +43,7 @@ function AppContent(): React.JSX.Element {
       }
     };
     initialize();
-  }, []);
+  }, [system]);
 
   return (
     <SystemContext.Provider value={system}>
@@ -128,7 +123,7 @@ function SyncDrizzleList() {
         tables: ['lists'],
       },
     );
-  }, []);
+  }, [system.drizzleSync, system.powersync]);
 
   return (
     <View>
@@ -187,7 +182,7 @@ function SyncDrizzleList() {
 function DrizzleList() {
   const system = useSystem();
   const { data: lists } = useQuery(
-    toCompilableQuery(system.drizzle.select().from(drizzleLists)),
+    toCompilableQuery(system.drizzleSync.select().from(drizzleLists)),
   );
   return (
     <View>
@@ -217,7 +212,7 @@ function DrizzleList() {
             <Button
               title="X"
               onPress={async () => {
-                await system.drizzle
+                await system.drizzleSync
                   .delete(drizzleLists)
                   .where(eq(drizzleLists.id, list.id!));
               }}
@@ -228,7 +223,7 @@ function DrizzleList() {
       <Button
         title="Add List"
         onPress={async () => {
-          await system.drizzle.insert(drizzleLists).values({
+          await system.drizzleSync.insert(drizzleLists).values({
             id: generateUUID(),
             name: `List ${Math.floor(Math.random() * 1000)}`,
             owner_id: generateUUID(),
