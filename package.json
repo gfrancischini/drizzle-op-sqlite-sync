@@ -47,7 +47,7 @@
     "@rollup/plugin-node-resolve": "^16.0.1",
     "@rollup/plugin-typescript": "^12.1.4",
     "@types/node": "^20.17.6",
-    "drizzle-orm": "^0.44.5",
+    "drizzle-orm": "1.0.0-beta.1-f92627f",
     "prettier": "^3.6.2",
     "rollup": "^4.50.0",
     "rollup-plugin-dts": "^6.2.3",
@@ -64,5 +64,6 @@
   },
   "dependencies": {
     "@op-engineering/op-sqlite": "^15.0.1"
-  }
+  },
+  "packageManager": "pnpm@10.12.2+sha512.a32540185b964ee30bb4e979e405adc6af59226b438ee4cc19f9e8773667a66d302f5bfee60a39d3cac69e35e4b96e708a71dd002b7e9359c4112a1722ac323f"
 }

@@ -1,9 +1,10 @@
 import { entityKind } from 'drizzle-orm/entity';
-import type { RelationalSchemaConfig, TablesRelationalConfig } from 'drizzle-orm/relations';
+import type { AnyRelations, TablesRelationalConfig } from 'drizzle-orm/relations';
 import type { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core/dialect';
+import type * as V1 from 'drizzle-orm/_relations';
 import {
   OPSQLiteBaseSession,
-  OpSQLiteSessionOptions,
+  OPSQLiteSessionOptions,
   OPSQLiteTransaction,
   OPSQLiteTransactionConfig
 } from './OPSQLiteBaseSession.js';
@@ -11,30 +12,42 @@ import { DB } from '@op-engineering/op-sqlite';
 
 export class OPSQLiteSession<
   TFullSchema extends Record<string, unknown>,
-  TSchema extends TablesRelationalConfig
-> extends OPSQLiteBaseSession<TFullSchema, TSchema> {
+  TRelations extends AnyRelations,
+  TSchema extends V1.TablesRelationalConfig
+> extends OPSQLiteBaseSession<TFullSchema, TRelations, TSchema> {
   static readonly [entityKind]: string = 'OPSQLiteSession';
   protected client: DB;
   constructor(
     db: DB,
     dialect: SQLiteSyncDialect,
-    schema: RelationalSchemaConfig<TSchema> | undefined,
-    options: OpSQLiteSessionOptions = {}
+    protected relations: TRelations,
+    protected schema: V1.RelationalSchemaConfig<TSchema> | undefined,
+    options: OPSQLiteSessionOptions = {}
   ) {
-    super(db, dialect, schema, options);
+    super(db, dialect, relations, schema, options);
     this.client = db;
   }
 
+  // constructor(
+  //   private client: OPSQLiteConnection,
+  //   dialect: SQLiteAsyncDialect
+  // ) {
+  //   super(dialect);
+  //   this.logger = options.logger ?? new NoopLogger();
+  //   this.cache = options.cache ?? new NoopCache();
+  // }
+
   transaction<T>(
-    transaction: (tx: OPSQLiteTransaction<TFullSchema, TSchema>) => T,
+    transaction: (tx: OPSQLiteTransaction<TFullSchema, TRelations, TSchema>) => T,
     config: OPSQLiteTransactionConfig = {}
   ): T {
     let result: T;
 
-    const tx = new OPSQLiteTransaction<TFullSchema, TSchema>(
+    const tx = new OPSQLiteTransaction<TFullSchema, TRelations, TSchema>(
       'sync',
       this.dialect,
-      new OPSQLiteBaseSession(this.client, this.dialect, this.schema, this.options),
+      new OPSQLiteBaseSession(this.client, this.dialect, this.relations, this.schema, this.options),
+      this.relations,
       this.schema
     );
 
