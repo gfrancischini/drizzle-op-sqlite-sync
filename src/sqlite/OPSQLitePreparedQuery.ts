@@ -128,8 +128,7 @@ export class OPSQLitePreparedQuery<
     const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
     logger.logQuery(query.sql, params);
 
-    // @ts-expect-error
-    const rows = db.executeSync(query.sql, params).rows?._array || [];
+    const rows = db.executeSync(query.sql, params).rows || [];
     const row = rows[0];
 
     if (!row) {
@@ -139,14 +138,13 @@ export class OPSQLitePreparedQuery<
     return (customResultMapper as (rows: Record<string, unknown>[]) => unknown)([row]) as T['get'];
   }
 
-  private async allRqbV2(placeholderValues?: Record<string, unknown>): Promise<T['all']> {
+  private allRqbV2(placeholderValues?: Record<string, unknown>): T['all'] {
     const { query, logger, customResultMapper, db } = this;
 
     const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
     logger.logQuery(query.sql, params);
 
-    // @ts-expect-error
-    const rows = db.executeSync(query.sql, params).rows?._array || [];
+    const rows = db.executeSync(query.sql, params).rows || [];
 
     return (customResultMapper as (rows: Record<string, unknown>[]) => unknown)(rows) as T['all'];
   }
