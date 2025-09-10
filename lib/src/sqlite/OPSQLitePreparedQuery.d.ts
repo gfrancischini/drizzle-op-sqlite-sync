@@ -1,17 +1,17 @@
-import { DB, QueryResult } from "@op-engineering/op-sqlite";
-import { entityKind } from "drizzle-orm/entity";
-import type { Logger } from "drizzle-orm/logger";
-import { type Query } from "drizzle-orm/sql/sql";
-import type { SelectedFieldsOrdered } from "drizzle-orm/sqlite-core/query-builders/select.types";
-import { ExecuteResultSync, type PreparedQueryConfig as PreparedQueryConfigBase, type SQLiteExecuteMethod, SQLitePreparedQuery } from "drizzle-orm/sqlite-core/session";
-type PreparedQueryConfig = Omit<PreparedQueryConfigBase, "statement" | "run">;
+import { DB, QueryResult } from '@op-engineering/op-sqlite';
+import { entityKind } from 'drizzle-orm/entity';
+import type { Logger } from 'drizzle-orm/logger';
+import { type Query } from 'drizzle-orm/sql/sql';
+import type { SelectedFieldsOrdered } from 'drizzle-orm/sqlite-core/query-builders/select.types';
+import { ExecuteResultSync, type PreparedQueryConfig as PreparedQueryConfigBase, type SQLiteExecuteMethod, SQLitePreparedQuery } from 'drizzle-orm/sqlite-core/session';
+type PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;
 export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<{
-    type: "sync";
+    type: 'sync';
     run: QueryResult;
-    all: T["all"];
-    get: T["get"];
-    values: T["values"];
-    execute: T["execute"];
+    all: T['all'];
+    get: T['get'];
+    values: T['values'];
+    execute: T['execute'];
 }> {
     private db;
     private logger;
@@ -20,11 +20,11 @@ export declare class OPSQLitePreparedQuery<T extends PreparedQueryConfig = Prepa
     private customResultMapper?;
     static readonly [entityKind]: string;
     constructor(db: DB, query: Query, logger: Logger, fields: SelectedFieldsOrdered | undefined, executeMethod: SQLiteExecuteMethod, _isResponseInArrayMode: boolean, customResultMapper?: ((rows: unknown[][]) => unknown) | undefined);
-    execute(placeholderValues?: Record<string, unknown>): ExecuteResultSync<T["execute"]>;
+    execute(placeholderValues?: Record<string, unknown>): ExecuteResultSync<T['execute']>;
     run(placeholderValues?: Record<string, unknown>): QueryResult;
-    all(placeholderValues?: Record<string, unknown>): T["all"];
-    get(placeholderValues?: Record<string, unknown>): T["get"];
-    values(placeholderValues?: Record<string, unknown>): T["values"];
+    all(placeholderValues?: Record<string, unknown>): T['all'];
+    get(placeholderValues?: Record<string, unknown>): T['get'];
+    values(placeholderValues?: Record<string, unknown>): T['values'];
     isResponseInArrayMode(): boolean;
 }
 /**

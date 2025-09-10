@@ -12,7 +12,7 @@ var sql = require('drizzle-orm/sql/sql');
 var _a$2;
 class OPSQLitePreparedQuery extends session.SQLitePreparedQuery {
     constructor(db, query, logger, fields, executeMethod, _isResponseInArrayMode, customResultMapper) {
-        super("sync", executeMethod, query);
+        super('sync', executeMethod, query);
         this.db = db;
         this.logger = logger;
         this.fields = fields;
@@ -77,7 +77,7 @@ class OPSQLitePreparedQuery extends session.SQLitePreparedQuery {
     }
 }
 _a$2 = entity.entityKind;
-OPSQLitePreparedQuery[_a$2] = "OPSQLitePreparedQuery";
+OPSQLitePreparedQuery[_a$2] = 'OPSQLitePreparedQuery';
 /**
  * Maps a database row object to a result object based on the provided column definitions.
  * It reconstructs the hierarchical structure of the result by following the specified paths for each field.
@@ -98,8 +98,7 @@ function mapResultRow(columns, row, joinsNotNullableMap) {
             }
             else {
                 const rawValue = row[columnIndex];
-                const value = (node[pathChunk] =
-                    rawValue === null ? null : decoder.mapFromDriverValue(rawValue));
+                const value = (node[pathChunk] = rawValue === null ? null : decoder.mapFromDriverValue(rawValue));
                 updateNullifyMap(nullifyMap, field, path, value, joinsNotNullableMap);
             }
         }
@@ -130,8 +129,7 @@ function updateNullifyMap(nullifyMap, field, path, value, joinsNotNullableMap) {
     if (!(objectName in nullifyMap)) {
         nullifyMap[objectName] = value === null ? drizzleOrm.getTableName(field.table) : false;
     }
-    else if (typeof nullifyMap[objectName] === "string" &&
-        nullifyMap[objectName] !== drizzleOrm.getTableName(field.table)) {
+    else if (typeof nullifyMap[objectName] === 'string' && nullifyMap[objectName] !== drizzleOrm.getTableName(field.table)) {
         nullifyMap[objectName] = false;
     }
 }
@@ -143,7 +141,7 @@ function applyNullifyMap(result, nullifyMap, joinsNotNullableMap) {
         return;
     }
     for (const [objectName, tableName] of Object.entries(nullifyMap)) {
-        if (typeof tableName === "string" && !joinsNotNullableMap[tableName]) {
+        if (typeof tableName === 'string' && !joinsNotNullableMap[tableName]) {
             result[objectName] = null;
         }
     }
@@ -153,7 +151,7 @@ var _a$1, _b;
 class OPSQLiteTransaction extends session.SQLiteTransaction {
 }
 _a$1 = entity.entityKind;
-OPSQLiteTransaction[_a$1] = "OPSQLiteTransaction";
+OPSQLiteTransaction[_a$1] = 'OPSQLiteTransaction';
 class OPSQLiteBaseSession extends session.SQLiteSession {
     constructor(db, dialect, schema, options = {}) {
         var _c;
@@ -168,11 +166,11 @@ class OPSQLiteBaseSession extends session.SQLiteSession {
         return new OPSQLitePreparedQuery(this.db, query, this.logger, fields, executeMethod, isResponseInArrayMode, customResultMapper);
     }
     transaction(_transaction, _config = {}) {
-        throw new Error("Nested transactions are not supported");
+        throw new Error('Nested transactions are not supported');
     }
 }
 _b = entity.entityKind;
-OPSQLiteBaseSession[_b] = "OPSQLiteBaseSession";
+OPSQLiteBaseSession[_b] = 'OPSQLiteBaseSession';
 
 var _a;
 class OPSQLiteSession extends OPSQLiteBaseSession {
@@ -183,14 +181,13 @@ class OPSQLiteSession extends OPSQLiteBaseSession {
     transaction(transaction, config = {}) {
         let result;
         const tx = new OPSQLiteTransaction('sync', this.dialect, new OPSQLiteBaseSession(this.client, this.dialect, this.schema, this.options), this.schema);
-        //this.run(sql`begin${config?.behavior ? ' ' + config.behavior : ''}`);
-        this.run(drizzleOrm.sql `begin`);
+        this.client.executeSync(`begin${(config === null || config === void 0 ? void 0 : config.behavior) ? ' ' + config.behavior : ''}`);
         try {
             result = transaction(tx);
-            this.run(drizzleOrm.sql `commit`);
+            this.client.executeSync('commit');
         }
         catch (err) {
-            this.run(drizzleOrm.sql `rollback`);
+            this.client.executeSync('rollback');
             throw err;
         }
         return result;
