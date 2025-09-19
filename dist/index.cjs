@@ -303,3 +303,4 @@ function drizzle(client, config = {}) {
 }
 
 exports.drizzle = drizzle;
+//# sourceMappingURL=index.cjs.map
