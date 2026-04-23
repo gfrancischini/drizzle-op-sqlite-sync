@@ -6,7 +6,14 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Button, FlatList, StatusBar, Text, useColorScheme, View } from 'react-native';
+import {
+  Button,
+  FlatList,
+  StatusBar,
+  Text,
+  useColorScheme,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { PowerSyncContext, useQuery } from '@powersync/react-native';
 import { eq } from 'drizzle-orm';
@@ -38,7 +45,7 @@ function AppContent(): React.JSX.Element {
       }
     };
     initialize();
-  }, []);
+  }, [system]);
 
   return (
     <SystemContext.Provider value={system}>
@@ -65,7 +72,11 @@ function AppContent(): React.JSX.Element {
               />
             </View>
 
-            {activeScreen === 'tests' ? <SimultaneousWritesScreen /> : <ListsScreen />}
+            {activeScreen === 'tests' ? (
+              <SimultaneousWritesScreen />
+            ) : (
+              <ListsScreen />
+            )}
           </View>
         </SafeAreaView>
       </PowerSyncContext.Provider>
@@ -143,7 +154,7 @@ function SyncDrizzleList() {
         tables: ['lists'],
       },
     );
-  }, []);
+  }, [system.drizzleSync, system.powersync]);
 
   return (
     <View>
@@ -201,10 +212,9 @@ function SyncDrizzleList() {
 
 function DrizzleList() {
   const system = useSystem();
+
   const { data: lists } = useQuery(
-    toCompilableQuery(
-      system.drizzle.select().from(drizzleLists).orderBy(drizzleLists.name),
-    ),
+    toCompilableQuery(system.drizzleSync!.select().from(drizzleLists)),
   );
 
   return (
@@ -212,7 +222,7 @@ function DrizzleList() {
       <Button
         title="Add List"
         onPress={async () => {
-          await system.drizzle.insert(drizzleLists).values({
+          await system.drizzleSync!.insert(drizzleLists).values({
             id: generateUUID(),
             name: `aList ${Math.floor(Math.random() * 1000)}`,
             owner_id: generateUUID(),
@@ -245,13 +255,23 @@ function DrizzleList() {
             <Button
               title="X"
               onPress={async () => {
-                await system.drizzle
-                  .delete(drizzleLists)
+                await system
+                  .drizzleSync!.delete(drizzleLists)
                   .where(eq(drizzleLists.id, list.id!));
               }}
             ></Button>
           </View>
         )}
+      />
+      <Button
+        title="Add List"
+        onPress={async () => {
+          await system.drizzleSync!.insert(drizzleLists).values({
+            id: generateUUID(),
+            name: `List ${Math.floor(Math.random() * 1000)}`,
+            owner_id: generateUUID(),
+          });
+        }}
       />
     </View>
   );

@@ -1,5 +1,7 @@
 import { DB, QueryResult, Scalar } from '@op-engineering/op-sqlite';
 import { Column, DriverValueDecoder, getTableName, SQL } from 'drizzle-orm';
+import { Cache } from 'drizzle-orm/cache/core';
+import { WithCacheConfig } from 'drizzle-orm/cache/core/types';
 import { entityKind, is } from 'drizzle-orm/entity';
 import type { Logger } from 'drizzle-orm/logger';
 import { fillPlaceholders, type Query } from 'drizzle-orm/sql/sql';
@@ -14,7 +16,10 @@ import {
 
 type PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;
 
-export class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQueryConfig> extends SQLitePreparedQuery<{
+export class OPSQLitePreparedQuery<
+  T extends PreparedQueryConfig = PreparedQueryConfig,
+  TIsRqbV2 extends boolean = false
+> extends SQLitePreparedQuery<{
   type: 'sync';
   run: QueryResult;
   all: T['all'];
@@ -22,18 +27,27 @@ export class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQuery
   values: T['values'];
   execute: T['execute'];
 }> {
-  static readonly [entityKind]: string = 'OPSQLitePreparedQuery';
+  static override readonly [entityKind]: string = 'OPSQLitePreparedQuery';
 
   constructor(
     private db: DB,
     query: Query,
     private logger: Logger,
+    cache: Cache,
+    queryMetadata:
+      | {
+          type: 'select' | 'update' | 'delete' | 'insert';
+          tables: string[];
+        }
+      | undefined,
+    cacheConfig: WithCacheConfig | undefined,
     private fields: SelectedFieldsOrdered | undefined,
     executeMethod: SQLiteExecuteMethod,
     private _isResponseInArrayMode: boolean,
-    private customResultMapper?: (rows: unknown[][]) => unknown
+    private customResultMapper?: (rows: TIsRqbV2 extends true ? Record<string, unknown>[] : unknown[][]) => unknown,
+    private isRqbV2Query?: TIsRqbV2
   ) {
-    super('sync', executeMethod, query);
+    super('sync', executeMethod, query, cache, queryMetadata, cacheConfig);
   }
 
   execute(placeholderValues?: Record<string, unknown>): ExecuteResultSync<T['execute']> {
@@ -50,34 +64,48 @@ export class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQuery
     this.logger.logQuery(this.query.sql, params);
     const rs = this.db.executeSync(this.query.sql, params);
     return rs;
+    // return this.queryWithCache(this.query.sql, params, async () => {
+    //   return this.client.executeAsync(this.query.sql, params);
+    // });
   }
 
   all(placeholderValues?: Record<string, unknown>): T['all'] {
-    const { fields, query, logger, customResultMapper } = this;
+    if (this.isRqbV2Query) return this.allRqbV2(placeholderValues);
+
+    const joinsNotNullableMap = (this as any).joinsNotNullableMap;
+    const { fields, /*joinsNotNullableMap,*/ query, logger, customResultMapper, db } = this;
     if (!fields && !customResultMapper) {
       const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
       logger.logQuery(query.sql, params);
+
       const rs = this.db.executeSync(this.query.sql, params);
       return rs.rows ?? [];
+      // return await this.queryWithCache(query.sql, params, async () => {
+      //   return client.execute(query.sql, params).rows?._array || [];
+      // });
     }
 
     const rows = this.values(placeholderValues) as unknown[][];
-
     if (customResultMapper) {
-      const mapped = customResultMapper(rows) as T['all'];
+      const mapped = (customResultMapper as (rows: unknown[][]) => unknown)(rows) as T['all'];
       return mapped;
     }
-    return rows.map((row) => mapResultRow(fields!, row, (this as any).joinsNotNullableMap));
+    return rows.map((row) => mapResultRow(fields!, row, joinsNotNullableMap));
   }
 
   get(placeholderValues?: Record<string, unknown>): T['get'] {
-    const params = fillPlaceholders(this.query.params, placeholderValues ?? {}) as Scalar[];
-    this.logger.logQuery(this.query.sql, params);
+    if (this.isRqbV2Query) return this.getRqbV2(placeholderValues);
 
-    const { fields, customResultMapper } = this;
+    const { fields, /*joinsNotNullableMap,*/ customResultMapper, query, logger } = this;
+    const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
+    logger.logQuery(query.sql, params);
     const joinsNotNullableMap = (this as any).joinsNotNullableMap;
     if (!fields && !customResultMapper) {
       return this.db.executeSync(this.query.sql, params) as T['get'];
+      // const rows = await this.queryWithCache(query.sql, params, async () => {
+      //   return client.execute(query.sql, params).rows?._array || [];
+      // });
+      // return rows[0];
     }
 
     const rows = this.values(placeholderValues) as unknown[][];
@@ -88,10 +116,37 @@ export class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQuery
     }
 
     if (customResultMapper) {
-      return customResultMapper(rows) as T['get'];
+      return (customResultMapper as (rows: unknown[][]) => unknown)(rows) as T['get'];
     }
 
     return mapResultRow(fields!, row, joinsNotNullableMap);
+  }
+
+  private getRqbV2(placeholderValues?: Record<string, unknown>): T['get'] {
+    const { customResultMapper, query, logger, db } = this;
+
+    const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
+    logger.logQuery(query.sql, params);
+
+    const rows = db.executeSync(query.sql, params).rows || [];
+    const row = rows[0];
+
+    if (!row) {
+      return undefined;
+    }
+
+    return (customResultMapper as (rows: Record<string, unknown>[]) => unknown)([row]) as T['get'];
+  }
+
+  private allRqbV2(placeholderValues?: Record<string, unknown>): T['all'] {
+    const { query, logger, customResultMapper, db } = this;
+
+    const params = fillPlaceholders(query.params, placeholderValues ?? {}) as Scalar[];
+    logger.logQuery(query.sql, params);
+
+    const rows = db.executeSync(query.sql, params).rows || [];
+
+    return (customResultMapper as (rows: Record<string, unknown>[]) => unknown)(rows) as T['all'];
   }
 
   values(placeholderValues?: Record<string, unknown>): T['values'] {
@@ -99,6 +154,9 @@ export class OPSQLitePreparedQuery<T extends PreparedQueryConfig = PreparedQuery
     this.logger.logQuery(this.query.sql, params);
 
     return this.db.executeRawSync(this.query.sql, params);
+    // return await this.queryWithCache(this.query.sql, params, async () => {
+    //   return await this.client.executeRawAsync(this.query.sql, params);
+    // });
   }
 
   isResponseInArrayMode(): boolean {
@@ -169,7 +227,9 @@ function updateNullifyMap(
 
   const objectName = path[0]!;
   if (!(objectName in nullifyMap)) {
+    // @ts-expect-error
     nullifyMap[objectName] = value === null ? getTableName(field.table) : false;
+    // @ts-expect-error
   } else if (typeof nullifyMap[objectName] === 'string' && nullifyMap[objectName] !== getTableName(field.table)) {
     nullifyMap[objectName] = false;
   }

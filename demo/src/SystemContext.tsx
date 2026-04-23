@@ -1,5 +1,6 @@
 import React from 'react';
 import { sqliteTable, text } from 'drizzle-orm/sqlite-core';
+// import { defineRelations } from 'drizzle-orm';
 import {
   AbstractPowerSyncDatabase,
   BaseObserver,
@@ -11,13 +12,9 @@ import {
   RowUpdateType,
   UpdateNotification,
 } from '@powersync/react-native';
-import { relations } from 'drizzle-orm';
+import { relations } from 'drizzle-orm/_relations';
 import { OPSqliteOpenFactory } from '@powersync/op-sqlite';
-import {
-  DrizzleAppSchema,
-  PowerSyncSQLiteDatabase,
-  wrapPowerSyncWithDrizzle,
-} from '@powersync/drizzle-driver';
+import { DrizzleAppSchema } from '@powersync/drizzle-driver';
 import {
   drizzle,
   OPSQLiteDatabase,
@@ -103,11 +100,11 @@ export const drizzleTodos = sqliteTable('todos', {
   created_at: text('created_at'),
 });
 
-export const listsRelations = relations(drizzleLists, ({ one, many }) => ({
+export const listsRelations = relations(drizzleLists, ({ many }) => ({
   todos: many(drizzleTodos),
 }));
 
-export const todosRelations = relations(drizzleTodos, ({ one, many }) => ({
+export const todosRelations = relations(drizzleTodos, ({ one }) => ({
   list: one(drizzleLists, {
     fields: [drizzleTodos.list_id],
     references: [drizzleLists.id],
@@ -128,8 +125,9 @@ export const DB_NAME = 'powersync-op-sqlite.db';
 export class System {
   connector: SelfhostConnector;
   powersync: PowerSyncDatabase;
-  drizzle: PowerSyncSQLiteDatabase<typeof drizzleSchema>;
+  // drizzle: PowerSyncSQLiteDatabase<typeof drizzleSchema>;
   drizzleSync?: OPSQLiteDatabase<typeof drizzleSchema>;
+  opSqlite?: DB;
   updateBuffer: UpdateNotification[] = [];
 
   constructor() {
@@ -142,9 +140,9 @@ export class System {
       logger,
     });
 
-    this.drizzle = wrapPowerSyncWithDrizzle(this.powersync, {
-      schema: drizzleSchema,
-    });
+    // this.drizzle = wrapPowerSyncWithDrizzle(this.powersync, {
+    //   schema: drizzleSchema,
+    // });
   }
 
   async init() {
@@ -158,7 +156,7 @@ export class System {
     this.drizzleSync = drizzle(db, {
       schema: drizzleSchema,
     });
-    
+
     this.initPowersyncOpSqlite(db);
   }
 
