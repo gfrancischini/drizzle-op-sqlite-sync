@@ -1,24 +1,20 @@
 import { entityKind } from 'drizzle-orm/entity';
 import type { Logger } from 'drizzle-orm/logger';
 import { NoopLogger } from 'drizzle-orm/logger';
-import type { AnyRelations, TablesRelationalConfig } from 'drizzle-orm/relations';
-import type * as V1 from 'drizzle-orm/_relations';
-import { type Query } from 'drizzle-orm/sql/sql';
-import type { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core/dialect';
-import type { SelectedFieldsOrdered } from 'drizzle-orm/sqlite-core/query-builders/select.types';
+import type { AnyRelations } from 'drizzle-orm/relations';
+import type { Query } from 'drizzle-orm/sql/sql';
+import type { SQLiteDialect } from 'drizzle-orm/sqlite-core/dialect';
 import {
-  PreparedQueryConfig,
-  type PreparedQueryConfig as PreparedQueryConfigBase,
-  type SQLiteExecuteMethod,
-  SQLiteSession,
-  SQLiteTransaction,
-  type SQLiteTransactionConfig
-} from 'drizzle-orm/sqlite-core/session';
-import { DB, QueryResult } from '@op-engineering/op-sqlite';
-import { OPSQLitePreparedQuery } from './OPSQLitePreparedQuery.js';
+  SQLiteAsyncPreparedQuery,
+  SQLiteAsyncSession,
+  SQLiteAsyncTransaction,
+  type SQLiteAsyncPreparedQueryConfig
+} from 'drizzle-orm/sqlite-core/async/session';
+import type { SQLiteExecuteMethod, SQLiteTransactionConfig } from 'drizzle-orm/sqlite-core/session';
+import type { WithCacheConfig } from 'drizzle-orm/cache/core/types';
+import { type Cache, NoopCache } from 'drizzle-orm/cache/core';
+import type { DB, QueryResult, Scalar } from '@op-engineering/op-sqlite';
 
-import { WithCacheConfig } from 'drizzle-orm/cache/core/types';
-import { Cache, NoopCache } from 'drizzle-orm/cache/core';
 export interface OPSQLiteSessionOptions {
   logger?: Logger;
   cache?: Cache;
@@ -28,87 +24,99 @@ export type OPSQLiteTransactionConfig = SQLiteTransactionConfig & {
   accessMode?: 'read only' | 'read write';
 };
 
-export class OPSQLiteTransaction<
-  TFullSchema extends Record<string, unknown>,
-  TRelations extends AnyRelations,
-  TSchema extends V1.TablesRelationalConfig
-> extends SQLiteTransaction<'sync', QueryResult, TFullSchema, TRelations, TSchema> {
+/** The prepared-query config for a synchronous op-sqlite session. */
+export type OPSQLitePreparedQueryConfig = SQLiteAsyncPreparedQueryConfig & {
+  type: 'sync';
+};
+
+/**
+ * Extracts the row-value arrays Drizzle expects from an op-sqlite raw result.
+ *
+ * op-sqlite >= 17 returns `RawQueryResult` ({ rawRows, columnNames, rowsAffected,
+ * insertId }) from `executeRaw`/`executeRawSync`; <= 16 returned the bare
+ * `Scalar[][]`. `rawRows` is absent for statements that produce no rows.
+ *
+ * The return type is derived from `DB` because op-sqlite does not export
+ * `RawQueryResult` from its entry point, even though it is now the public
+ * return type of `executeRaw`/`executeRawSync`.
+ */
+function toRawRows(result: ReturnType<DB['executeRawSync']>): Scalar[][] {
+  return result?.rawRows ?? [];
+}
+
+export class OPSQLiteTransaction<TRelations extends AnyRelations> extends SQLiteAsyncTransaction<
+  'sync',
+  QueryResult,
+  TRelations
+> {
   static readonly [entityKind]: string = 'OPSQLiteTransaction';
 }
 
-export class OPSQLiteBaseSession<
-  TFullSchema extends Record<string, unknown>,
-  TRelations extends AnyRelations,
-  TSchema extends V1.TablesRelationalConfig
-> extends SQLiteSession<'sync', QueryResult, TFullSchema, TRelations, TSchema> {
+export class OPSQLiteBaseSession<TRelations extends AnyRelations> extends SQLiteAsyncSession<
+  'sync',
+  QueryResult,
+  TRelations
+> {
   static readonly [entityKind]: string = 'OPSQLiteBaseSession';
 
   protected logger: Logger;
-  private cache: Cache;
+  protected cache: Cache;
 
   constructor(
     protected db: DB,
-    protected dialect: SQLiteSyncDialect,
+    dialect: SQLiteDialect,
     protected relations: TRelations,
-    protected schema: V1.RelationalSchemaConfig<TSchema> | undefined,
     protected options: OPSQLiteSessionOptions = {}
   ) {
-    super(dialect);
+    super(dialect, 'sync');
     this.logger = options.logger ?? new NoopLogger();
     this.cache = options.cache ?? new NoopCache();
   }
 
-  prepareQuery<T extends PreparedQueryConfigBase & { type: 'sync' }>(
+  /**
+   * Drizzle owns placeholder filling, logging, result mapping and caching as of
+   * 1.0.0-rc.4 — a driver only supplies the raw executors below. `mode` selects
+   * the row shape: `arrays` wants positional values, everything else wants
+   * column-keyed objects.
+   */
+  prepareQuery(
     query: Query,
-    fields: SelectedFieldsOrdered | undefined,
-    executeMethod: SQLiteExecuteMethod,
-    isResponseInArrayMode: boolean,
-    customResultMapper?: (rows: unknown[][], mapColumnValue?: (value: unknown) => unknown) => unknown,
+    mode: 'arrays' | 'objects' | 'raw',
+    _prepare: boolean,
+    executeMethod?: SQLiteExecuteMethod,
+    mapper?: (rows: any[]) => any,
     queryMetadata?: {
       type: 'select' | 'update' | 'delete' | 'insert';
       tables: string[];
     },
     cacheConfig?: WithCacheConfig
-  ): OPSQLitePreparedQuery<T> {
-    return new OPSQLitePreparedQuery(
-      this.db,
+  ): SQLiteAsyncPreparedQuery<OPSQLitePreparedQueryConfig> {
+    const { db } = this;
+    const { sql } = query;
+
+    const arrays = (params: unknown[]) => toRawRows(db.executeRawSync(sql, params as Scalar[]));
+    const objects = (params: unknown[]) => db.executeSync(sql, params as Scalar[]).rows;
+
+    return new SQLiteAsyncPreparedQuery<OPSQLitePreparedQueryConfig>(
+      'sync',
+      executeMethod,
+      {
+        all: (params) => (mode === 'arrays' ? arrays(params) : objects(params)),
+        get: (params) => (mode === 'arrays' ? arrays(params)[0] : objects(params)[0]),
+        run: (params) => db.executeSync(sql, params as Scalar[]),
+        values: (params) => arrays(params)
+      },
       query,
+      mapper,
+      mode,
       this.logger,
       this.cache,
       queryMetadata,
-      cacheConfig,
-      fields,
-      executeMethod,
-      isResponseInArrayMode,
-      customResultMapper
+      cacheConfig
     );
   }
 
-  prepareRelationalQuery<T extends Omit<PreparedQueryConfig, 'run'>>(
-    query: Query,
-    fields: SelectedFieldsOrdered | undefined,
-    executeMethod: SQLiteExecuteMethod,
-    customResultMapper: (rows: Record<string, unknown>[]) => unknown
-  ): OPSQLitePreparedQuery<T, true> {
-    return new OPSQLitePreparedQuery(
-      this.db,
-      query,
-      this.logger,
-      this.cache,
-      undefined,
-      undefined,
-      fields,
-      executeMethod,
-      false,
-      customResultMapper,
-      true
-    );
-  }
-
-  transaction<T>(
-    _transaction: (tx: OPSQLiteTransaction<TFullSchema, TRelations, TSchema>) => T,
-    _config: OPSQLiteTransactionConfig = {}
-  ): T {
+  transaction<T>(_transaction: (tx: OPSQLiteTransaction<TRelations>) => T, _config: OPSQLiteTransactionConfig = {}): T {
     throw new Error('Nested transactions are not supported');
   }
 }

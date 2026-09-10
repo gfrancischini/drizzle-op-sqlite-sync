@@ -1,54 +1,34 @@
 import { entityKind } from 'drizzle-orm/entity';
-import type { AnyRelations, TablesRelationalConfig } from 'drizzle-orm/relations';
-import type { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core/dialect';
-import type * as V1 from 'drizzle-orm/_relations';
+import type { AnyRelations } from 'drizzle-orm/relations';
+import type { SQLiteDialect } from 'drizzle-orm/sqlite-core/dialect';
 import {
   OPSQLiteBaseSession,
-  OPSQLiteSessionOptions,
   OPSQLiteTransaction,
-  OPSQLiteTransactionConfig
+  type OPSQLiteSessionOptions,
+  type OPSQLiteTransactionConfig
 } from './OPSQLiteBaseSession.js';
-import { DB } from '@op-engineering/op-sqlite';
+import type { DB } from '@op-engineering/op-sqlite';
 
-export class OPSQLiteSession<
-  TFullSchema extends Record<string, unknown>,
-  TRelations extends AnyRelations,
-  TSchema extends V1.TablesRelationalConfig
-> extends OPSQLiteBaseSession<TFullSchema, TRelations, TSchema> {
+export class OPSQLiteSession<TRelations extends AnyRelations> extends OPSQLiteBaseSession<TRelations> {
   static readonly [entityKind]: string = 'OPSQLiteSession';
   protected client: DB;
-  constructor(
-    db: DB,
-    dialect: SQLiteSyncDialect,
-    protected relations: TRelations,
-    protected schema: V1.RelationalSchemaConfig<TSchema> | undefined,
-    options: OPSQLiteSessionOptions = {}
-  ) {
-    super(db, dialect, relations, schema, options);
+
+  constructor(db: DB, dialect: SQLiteDialect, relations: TRelations, options: OPSQLiteSessionOptions = {}) {
+    super(db, dialect, relations, options);
     this.client = db;
   }
 
-  // constructor(
-  //   private client: OPSQLiteConnection,
-  //   dialect: SQLiteAsyncDialect
-  // ) {
-  //   super(dialect);
-  //   this.logger = options.logger ?? new NoopLogger();
-  //   this.cache = options.cache ?? new NoopCache();
-  // }
-
-  transaction<T>(
-    transaction: (tx: OPSQLiteTransaction<TFullSchema, TRelations, TSchema>) => T,
+  override transaction<T>(
+    transaction: (tx: OPSQLiteTransaction<TRelations>) => T,
     config: OPSQLiteTransactionConfig = {}
   ): T {
     let result: T;
 
-    const tx = new OPSQLiteTransaction<TFullSchema, TRelations, TSchema>(
+    const tx = new OPSQLiteTransaction<TRelations>(
       'sync',
       this.dialect,
-      new OPSQLiteBaseSession(this.client, this.dialect, this.relations, this.schema, this.options),
-      this.relations,
-      this.schema
+      new OPSQLiteBaseSession(this.client, this.dialect, this.relations, this.options),
+      this.relations
     );
 
     this.client.executeSync(`begin${config?.behavior ? ' ' + config.behavior : ''}`);

@@ -16,7 +16,7 @@
     "@powersync/drizzle-driver": "^0.8.0",
     "@powersync/react-native": "^2.2.1",
     "@react-native/new-app-screen": "0.81.0",
-    "drizzle-orm": "1.0.0-beta.1-f92627f",
+    "drizzle-orm": "1.0.0-rc.4",
     "react": "19.1.0",
     "react-native": "0.81.0",
     "react-native-safe-area-context": "^5.5.2"

@@ -1,26 +1,24 @@
-import { AnyRelations, EmptyRelations, Query } from 'drizzle-orm';
+import type { AnyRelations, EmptyRelations, Query } from 'drizzle-orm';
 import { DefaultLogger } from 'drizzle-orm/logger';
-// import {
-//   createTableRelationsHelpers,
-//   extractTablesRelationalConfig,
-//   type RelationalSchemaConfig,
-//   type TablesRelationalConfig
-// } from 'drizzle-orm/relations';
-import { BaseSQLiteDatabase } from 'drizzle-orm/sqlite-core/db';
-import { SQLiteSyncDialect } from 'drizzle-orm/sqlite-core/dialect';
+import { SQLiteAsyncDatabase } from 'drizzle-orm/sqlite-core/async/db';
+import { SQLiteDialect } from 'drizzle-orm/sqlite-core/dialect';
 import type { DrizzleConfig } from 'drizzle-orm/utils';
 import { OPSQLiteSession } from './OPSQLiteSession.js';
-import { DB, QueryResult } from '@op-engineering/op-sqlite';
-import * as V1 from 'drizzle-orm/_relations';
+import type { DB, QueryResult } from '@op-engineering/op-sqlite';
 
 export type DrizzleQuery<T> = { toSQL(): Query; execute(): Promise<T | T[]> };
 
+/**
+ * `TSchema` is retained for API compatibility with callers that write
+ * `OPSQLiteDatabase<Schema, SchemaRelations>`. As of drizzle-orm 1.0.0-rc.4 the
+ * relational query builder is driven entirely by `TRelations` (relations v2);
+ * the v1 `schema` config no longer participates in the database type.
+ */
 export class OPSQLiteDatabase<
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   TSchema extends Record<string, unknown> = Record<string, never>,
   TRelations extends AnyRelations = EmptyRelations
-> extends BaseSQLiteDatabase<'sync', QueryResult, TSchema, TRelations> {
-  // static override readonly [entityKind]: string = 'OPSQLiteDatabase';
-}
+> extends SQLiteAsyncDatabase<'sync', QueryResult, TRelations> {}
 
 export function drizzle<
   TSchema extends Record<string, unknown> = Record<string, never>,
@@ -31,7 +29,8 @@ export function drizzle<
 ): OPSQLiteDatabase<TSchema, TRelations> & {
   $client: DB;
 } {
-  const dialect = new SQLiteSyncDialect({ casing: config.casing });
+  const dialect = new SQLiteDialect(config.jit === undefined ? {} : { useJitMappers: config.jit });
+
   let logger;
   if (config.logger === true) {
     logger = new DefaultLogger();
@@ -39,25 +38,14 @@ export function drizzle<
     logger = config.logger;
   }
 
-  let schema: V1.RelationalSchemaConfig<V1.TablesRelationalConfig> | undefined;
-  if (config.schema) {
-    const tablesConfig = V1.extractTablesRelationalConfig(config.schema, V1.createTableRelationsHelpers);
-    schema = {
-      fullSchema: config.schema,
-      schema: tablesConfig.tables,
-      tableNamesMap: tablesConfig.tableNamesMap
-    };
-  }
-
   const relations = config.relations ?? ({} as TRelations);
-  const session = new OPSQLiteSession(client, dialect, relations, schema, { logger, cache: config.cache });
-  const db = new OPSQLiteDatabase(
-    'sync',
-    dialect,
-    session,
-    relations,
-    schema as V1.RelationalSchemaConfig<any>
-  ) as OPSQLiteDatabase<TSchema, TRelations>;
+  const session = new OPSQLiteSession(client, dialect, relations, {
+    logger,
+    cache: config.cache
+  });
+
+  const db = new OPSQLiteDatabase('sync', dialect, session, relations) as OPSQLiteDatabase<TSchema, TRelations>;
+
   (<any>db).$client = client;
   (<any>db).$cache = config.cache;
   if ((<any>db).$cache) {
