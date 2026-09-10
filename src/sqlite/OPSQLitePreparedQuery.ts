@@ -16,6 +16,21 @@ import {
 
 type PreparedQueryConfig = Omit<PreparedQueryConfigBase, 'statement' | 'run'>;
 
+/**
+ * Extracts the row-value arrays Drizzle expects from an op-sqlite raw result.
+ *
+ * op-sqlite >= 17 returns `RawQueryResult` ({ rawRows, columnNames, rowsAffected,
+ * insertId }) from `executeRaw`/`executeRawSync`; <= 16 returned the bare
+ * `Scalar[][]`. `rawRows` is absent for statements that produce no rows.
+ *
+ * The return type is derived from `DB` because op-sqlite does not export
+ * `RawQueryResult` from its entry point, even though it is now the public
+ * return type of `executeRaw`/`executeRawSync`.
+ */
+function toRawRows(result: ReturnType<DB['executeRawSync']>): Scalar[][] {
+  return result?.rawRows ?? [];
+}
+
 export class OPSQLitePreparedQuery<
   T extends PreparedQueryConfig = PreparedQueryConfig,
   TIsRqbV2 extends boolean = false
@@ -53,7 +68,7 @@ export class OPSQLitePreparedQuery<
   execute(placeholderValues?: Record<string, unknown>): ExecuteResultSync<T['execute']> {
     const params = fillPlaceholders(this.query.params, placeholderValues ?? {}) as Scalar[];
     this.logger.logQuery(this.query.sql, params);
-    const rs = this.db.executeRawSync(this.query.sql, params);
+    const rs = toRawRows(this.db.executeRawSync(this.query.sql, params));
     return new ExecuteResultSync(() => {
       return this.mapResult(rs, false);
     });
@@ -153,7 +168,7 @@ export class OPSQLitePreparedQuery<
     const params = fillPlaceholders(this.query.params, placeholderValues ?? {}) as Scalar[];
     this.logger.logQuery(this.query.sql, params);
 
-    return this.db.executeRawSync(this.query.sql, params);
+    return toRawRows(this.db.executeRawSync(this.query.sql, params)) as T['values'];
     // return await this.queryWithCache(this.query.sql, params, async () => {
     //   return await this.client.executeRawAsync(this.query.sql, params);
     // });

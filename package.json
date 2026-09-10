@@ -44,6 +44,7 @@
     "test:exports": "attw --pack ."
   },
   "devDependencies": {
+    "@op-engineering/op-sqlite": "^18.2.1",
     "@pnpm/workspace.find-packages": "^1000.0.33",
     "@rollup/plugin-commonjs": "^28.0.6",
     "@rollup/plugin-node-resolve": "^16.0.1",
@@ -61,11 +62,11 @@
   },
   "pnpm": {
     "overrides": {
-      "@op-engineering/op-sqlite": "15.0.1"
+      "@op-engineering/op-sqlite": "18.2.1"
     }
   },
-  "dependencies": {
-    "@op-engineering/op-sqlite": "^15.0.1"
-  },
-  "packageManager": "pnpm@10.12.2+sha512.a32540185b964ee30bb4e979e405adc6af59226b438ee4cc19f9e8773667a66d302f5bfee60a39d3cac69e35e4b96e708a71dd002b7e9359c4112a1722ac323f"
+  "packageManager": "pnpm@10.12.2+sha512.a32540185b964ee30bb4e979e405adc6af59226b438ee4cc19f9e8773667a66d302f5bfee60a39d3cac69e35e4b96e708a71dd002b7e9359c4112a1722ac323f",
+  "peerDependencies": {
+    "@op-engineering/op-sqlite": ">=17.1.0 <19.0.0"
+  }
 }
