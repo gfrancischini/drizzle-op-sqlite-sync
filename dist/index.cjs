@@ -30,6 +30,21 @@ function _interopNamespaceDefault(e) {
 var V1__namespace = /*#__PURE__*/_interopNamespaceDefault(V1);
 
 var _a$2;
+/**
+ * Extracts the row-value arrays Drizzle expects from an op-sqlite raw result.
+ *
+ * op-sqlite >= 17 returns `RawQueryResult` ({ rawRows, columnNames, rowsAffected,
+ * insertId }) from `executeRaw`/`executeRawSync`; <= 16 returned the bare
+ * `Scalar[][]`. `rawRows` is absent for statements that produce no rows.
+ *
+ * The return type is derived from `DB` because op-sqlite does not export
+ * `RawQueryResult` from its entry point, even though it is now the public
+ * return type of `executeRaw`/`executeRawSync`.
+ */
+function toRawRows(result) {
+    var _b;
+    return (_b = result === null || result === void 0 ? void 0 : result.rawRows) !== null && _b !== void 0 ? _b : [];
+}
 class OPSQLitePreparedQuery extends session.SQLitePreparedQuery {
     constructor(db, query, logger, cache, queryMetadata, cacheConfig, fields, executeMethod, _isResponseInArrayMode, customResultMapper, isRqbV2Query) {
         super('sync', executeMethod, query, cache, queryMetadata, cacheConfig);
@@ -43,7 +58,7 @@ class OPSQLitePreparedQuery extends session.SQLitePreparedQuery {
     execute(placeholderValues) {
         const params = sql.fillPlaceholders(this.query.params, placeholderValues !== null && placeholderValues !== void 0 ? placeholderValues : {});
         this.logger.logQuery(this.query.sql, params);
-        const rs = this.db.executeRawSync(this.query.sql, params);
+        const rs = toRawRows(this.db.executeRawSync(this.query.sql, params));
         return new session.ExecuteResultSync(() => {
             return this.mapResult(rs, false);
         });
@@ -124,7 +139,7 @@ class OPSQLitePreparedQuery extends session.SQLitePreparedQuery {
     values(placeholderValues) {
         const params = sql.fillPlaceholders(this.query.params, placeholderValues !== null && placeholderValues !== void 0 ? placeholderValues : {});
         this.logger.logQuery(this.query.sql, params);
-        return this.db.executeRawSync(this.query.sql, params);
+        return toRawRows(this.db.executeRawSync(this.query.sql, params));
         // return await this.queryWithCache(this.query.sql, params, async () => {
         //   return await this.client.executeRawAsync(this.query.sql, params);
         // });
