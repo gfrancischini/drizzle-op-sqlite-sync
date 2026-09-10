@@ -6,15 +6,12 @@ import {
   AbstractPowerSyncDatabase,
   BaseObserver,
   BatchedUpdateNotification,
-  createBaseLogger,
+  createConsoleLogger,
   DBAdapterListener,
-  LogLevel,
+  LogLevels,
   PowerSyncDatabase,
-  RowUpdateType,
-  UpdateNotification,
 } from '@powersync/react-native';
 import { relations } from 'drizzle-orm/_relations';
-import { OPSqliteOpenFactory } from '@powersync/op-sqlite';
 import { DrizzleAppSchema } from '@powersync/drizzle-driver';
 import {
   drizzle,
@@ -22,9 +19,41 @@ import {
 } from '@powersync-community/drizzle-op-sqlite-sync';
 import { Platform } from 'react-native';
 
-const logger = createBaseLogger();
-logger.useDefaults();
-logger.setLevel(LogLevel.DEBUG);
+const logger = createConsoleLogger({ minLevel: LogLevels.debug });
+
+/**
+ * Row-level change types.
+ *
+ * PowerSync v1 exported these, but v2 narrowed `BatchedUpdateNotification` to
+ * `{ tables: string[] }` and dropped the per-row detail. We still produce that
+ * detail ourselves from op-sqlite's update hook below, so the types live here.
+ *
+ * Values are SQLite's authorizer action codes, matching PowerSync v1.
+ */
+enum RowUpdateType {
+  SQLITE_DELETE = 9,
+  SQLITE_INSERT = 18,
+  SQLITE_UPDATE = 23,
+}
+
+interface TableUpdateOperation {
+  opType: RowUpdateType;
+  rowId: number;
+}
+
+interface UpdateNotification extends TableUpdateOperation {
+  table: string;
+}
+
+/**
+ * A `BatchedUpdateNotification` carrying the row-level detail we emit ourselves.
+ * PowerSync only relays this through its listener bus, so enriching it stays
+ * compatible with `DBAdapterListener`.
+ */
+interface BatchedRowUpdateNotification extends BatchedUpdateNotification {
+  groupedUpdates: Record<string, TableUpdateOperation[]>;
+  rawUpdates: UpdateNotification[];
+}
 
 export class SelfhostConnector {
   private _clientId: string | null = null;
@@ -141,9 +170,9 @@ export class System {
     this.connector = new SelfhostConnector();
     this.powersync = new PowerSyncDatabase({
       schema,
-      database: new OPSqliteOpenFactory({
+      database: {
         dbFilename: DB_NAME,
-      }),
+      },
       logger,
     });
     this.updateBuffer = [];
@@ -183,7 +212,10 @@ export class System {
     } else {
       opSqlite.loadExtension('libpowersync', 'sqlite3_powersync_init');
     }
-    opSqlite.executeSync('SELECT powersync_init()');
+    // No powersync_init() here: PowerSync v2 only loads the extension per
+    // connection (its own adapter does the same and never calls this), and
+    // powersync-sqlite-core 0.5.x made the function transaction-only. The
+    // ps_* schema is created by PowerSync itself in powersync.init().
 
     // Handle update hook to buffer row changes during a transaction
     opSqlite.updateHook(update => {
@@ -223,7 +255,7 @@ export class System {
         {},
       );
 
-      const batchedUpdate: BatchedUpdateNotification = {
+      const batchedUpdate: BatchedRowUpdateNotification = {
         groupedUpdates,
         rawUpdates: this.updateBuffer,
         tables: Object.keys(groupedUpdates),

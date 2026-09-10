@@ -5,16 +5,15 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@op-engineering/op-sqlite': 15.0.1
+  '@op-engineering/op-sqlite': 18.2.1
 
 importers:
 
   .:
-    dependencies:
-      '@op-engineering/op-sqlite':
-        specifier: 15.0.1
-        version: 15.0.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)
     devDependencies:
+      '@op-engineering/op-sqlite':
+        specifier: 18.2.1
+        version: 18.2.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)
       '@pnpm/workspace.find-packages':
         specifier: ^1000.0.33
         version: 1000.0.33(@pnpm/logger@1001.0.0)(@pnpm/worker@1000.1.11(@pnpm/logger@1001.0.0)(@types/node@20.19.11))(typanion@3.14.0)
@@ -32,7 +31,7 @@ importers:
         version: 20.19.11
       drizzle-orm:
         specifier: 1.0.0-beta.1-f92627f
-        version: 1.0.0-beta.1-f92627f(@libsql/client-wasm@0.15.14)(@op-engineering/op-sqlite@15.0.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1))
+        version: 1.0.0-beta.1-f92627f(@libsql/client-wasm@0.15.14)(@op-engineering/op-sqlite@18.2.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1))
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
@@ -760,11 +759,15 @@ packages:
     resolution: {integrity: sha512-/xGlezI6xfGO9NwuJlnwz/K14qD1kCSAGtacBHnGzeAIuJGazcp45KP5NuyARXoKb7cwulAGWVsbeSxdG/cb0Q==}
     engines: {node: ^18.17.0 || >=20.5.0}
 
-  '@op-engineering/op-sqlite@15.0.1':
-    resolution: {integrity: sha512-86tIMm/5OERUIguUq81YdRETlSsMzPdj9XYVdPA19fzNMT+Ptf5Vl5awLMEdvXPvOP9vyef5FealT+3llYwG8w==}
+  '@op-engineering/op-sqlite@18.2.1':
+    resolution: {integrity: sha512-atVOtXyFzO0e454eVS27AMwRs515URCKrkvLLG+mGKcyiF5UPfC53oukpNp2UmVzlLebyTEXNkTYs6n0dVGd0g==}
     peerDependencies:
+      '@sqlite.org/sqlite-wasm': '*'
       react: '*'
       react-native: '*'
+    peerDependenciesMeta:
+      '@sqlite.org/sqlite-wasm':
+        optional: true
 
   '@pkgjs/parseargs@0.11.0':
     resolution: {integrity: sha512-+1VkjdD0QBLPodGrJUeqarH8VAIvQODIbwh9XpP5Syisf7YoQgsJKPNFoqqLQlu+VQ/tVSshMR6loPMn8U+dPg==}
@@ -2349,7 +2352,7 @@ packages:
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
       '@neondatabase/serverless': '>=0.10.0'
-      '@op-engineering/op-sqlite': 15.0.1
+      '@op-engineering/op-sqlite': 18.2.1
       '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1.13'
       '@prisma/client': '*'
@@ -5264,7 +5267,7 @@ snapshots:
     dependencies:
       semver: 7.7.2
 
-  '@op-engineering/op-sqlite@15.0.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)':
+  '@op-engineering/op-sqlite@18.2.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)':
     dependencies:
       react: 19.1.1
       react-native: 0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1)
@@ -7508,10 +7511,10 @@ snapshots:
   dom-accessibility-api@0.5.16:
     optional: true
 
-  drizzle-orm@1.0.0-beta.1-f92627f(@libsql/client-wasm@0.15.14)(@op-engineering/op-sqlite@15.0.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)):
+  drizzle-orm@1.0.0-beta.1-f92627f(@libsql/client-wasm@0.15.14)(@op-engineering/op-sqlite@18.2.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)):
     optionalDependencies:
       '@libsql/client-wasm': 0.15.14
-      '@op-engineering/op-sqlite': 15.0.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)
+      '@op-engineering/op-sqlite': 18.2.1(react-native@0.81.0(@babel/core@7.28.3)(@react-native-community/cli@20.0.0(typescript@5.9.2))(@react-native/metro-config@0.81.0(@babel/core@7.28.3))(@types/react@19.1.11)(react@19.1.1))(react@19.1.1)
 
   dunder-proto@1.0.1:
     dependencies:
